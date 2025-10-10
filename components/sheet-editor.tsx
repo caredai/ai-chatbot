@@ -1,12 +1,14 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { parse, unparse } from "papaparse";
+import papaparse from "papaparse";
 import { memo, useEffect, useMemo, useState } from "react";
 import DataGrid, { textEditor } from "react-data-grid";
 import { cn } from "@/lib/utils";
 
 import "react-data-grid/lib/styles.css";
+
+const { parse, unparse } = papaparse;
 
 type SheetEditorProps = {
   content: string;

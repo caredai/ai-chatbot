@@ -1,0 +1,7 @@
+onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
+  - esbuild
+  - workerd
+
+overrides:
+  '@cared/sdk': link:../cared/packages/sdk

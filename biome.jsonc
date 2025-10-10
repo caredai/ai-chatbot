@@ -6,7 +6,9 @@
       "**/*",
       "!components/ui",
       "!lib/utils.ts",
-      "!hooks/use-mobile.ts"
+      "!hooks/use-mobile.ts",
+      "!routeTree.gen.ts",
+      "!.wrangler"
     ]
   },
   "linter": {
@@ -29,7 +31,9 @@
         "noMagicNumbers": "off",
 
         /* Needs more work to fix */
-        "noNestedTernary": "off"
+        "noNestedTernary": "off",
+
+        "noHeadElement": "off"
       },
       "nursery": {
         /* Too many false positives */
@@ -44,7 +48,12 @@
       },
       "a11y": {
         /* Needs more work to fix */
-        "noSvgWithoutTitle": "off"
+        "noSvgWithoutTitle": "off",
+
+        "useHtmlLang": "off"
+      },
+      "performance": {
+        "noBarrelFile": "off"
       }
     }
   }

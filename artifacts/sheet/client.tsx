@@ -1,4 +1,4 @@
-import { parse, unparse } from "papaparse";
+import papaparse from "papaparse";
 import { toast } from "sonner";
 import { Artifact } from "@/components/create-artifact";
 import {
@@ -9,6 +9,8 @@ import {
   UndoIcon,
 } from "@/components/icons";
 import { SpreadsheetEditor } from "@/components/sheet-editor";
+
+const { parse, unparse } = papaparse;
 
 type Metadata = any;
 

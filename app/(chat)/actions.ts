@@ -1,9 +1,10 @@
 "use server";
 
+import { createServerFn } from "@tanstack/react-start";
 import { generateText, type UIMessage } from "ai";
-import { cookies } from "next/headers";
 import type { VisibilityType } from "@/components/visibility-selector";
 import { myProvider } from "@/lib/ai/providers";
+import { setChatModelFromCookie } from "@/lib/cookie";
 import {
   deleteMessagesByChatIdAfterTimestamp,
   getMessageById,
@@ -11,8 +12,7 @@ import {
 } from "@/lib/db/queries";
 
 export async function saveChatModelAsCookie(model: string) {
-  const cookieStore = await cookies();
-  cookieStore.set("chat-model", model);
+  await setChatModelFromCookie({ data: { model } });
 }
 
 export async function generateTitleFromUserMessage({
@@ -42,6 +42,10 @@ export async function deleteTrailingMessages({ id }: { id: string }) {
   });
 }
 
+export const deleteTrailingMessagesFromServer = createServerFn()
+  .inputValidator((data: { id: string }) => data)
+  .handler(({ data: { id } }) => deleteTrailingMessages({ id }));
+
 export async function updateChatVisibility({
   chatId,
   visibility,
@@ -51,3 +55,11 @@ export async function updateChatVisibility({
 }) {
   await updateChatVisiblityById({ chatId, visibility });
 }
+
+export const updateChatVisibilityFromServer = createServerFn()
+  .inputValidator(
+    (data: { chatId: string; visibility: VisibilityType }) => data
+  )
+  .handler(({ data: { chatId, visibility } }) =>
+    updateChatVisibility({ chatId, visibility })
+  );

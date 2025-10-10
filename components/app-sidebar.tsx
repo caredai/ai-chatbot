@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useRouter } from "@tanstack/react-router";
 import type { User } from "next-auth";
 import { PlusIcon } from "@/components/icons";
 import { SidebarHistory } from "@/components/sidebar-history";
-import { SidebarUserNav } from "@/components/sidebar-user-nav";
+import { SidebarUser } from "@/components/sidebar-user";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -28,10 +27,10 @@ export function AppSidebar({ user }: { user: User | undefined }) {
           <div className="flex flex-row items-center justify-between">
             <Link
               className="flex flex-row items-center gap-3"
-              href="/"
               onClick={() => {
                 setOpenMobile(false);
               }}
+              to="/chat"
             >
               <span className="cursor-pointer rounded-md px-2 font-semibold text-lg hover:bg-muted">
                 Chatbot
@@ -43,8 +42,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   className="h-8 p-1 md:h-fit md:p-2"
                   onClick={() => {
                     setOpenMobile(false);
-                    router.push("/");
-                    router.refresh();
+                    router.navigate({ to: "/chat" });
                   }}
                   type="button"
                   variant="ghost"
@@ -62,7 +60,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
       <SidebarContent>
         <SidebarHistory user={user} />
       </SidebarContent>
-      <SidebarFooter>{user && <SidebarUserNav user={user} />}</SidebarFooter>
+      <SidebarFooter>{user && <SidebarUser user={user} />}</SidebarFooter>
     </Sidebar>
   );
 }

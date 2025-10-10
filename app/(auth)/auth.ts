@@ -6,6 +6,8 @@ import { DUMMY_PASSWORD } from "@/lib/constants";
 import { createGuestUser, getUser } from "@/lib/db/queries";
 import { authConfig } from "./auth.config";
 
+export { auth } from "@/lib/auth";
+
 export type UserType = "guest" | "regular";
 
 declare module "next-auth" {
@@ -33,7 +35,6 @@ declare module "next-auth/jwt" {
 
 export const {
   handlers: { GET, POST },
-  auth,
   signIn,
   signOut,
 } = NextAuth({

@@ -1,8 +1,8 @@
 "use client";
 
+import { useParams, useRouter } from "@tanstack/react-router";
 import { isToday, isYesterday, subMonths, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
-import { useParams, useRouter } from "next/navigation";
 import type { User } from "next-auth";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -99,7 +99,10 @@ export function getChatHistoryPaginationKey(
 
 export function SidebarHistory({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
-  const { id } = useParams();
+  const id = useParams({
+    from: "/chat/$id",
+    shouldThrow: false,
+  })?.id;
 
   const {
     data: paginatedChatHistories,
@@ -148,7 +151,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
     setShowDeleteDialog(false);
 
     if (deleteId === id) {
-      router.push("/");
+      router.navigate({ to: "/chat" });
     }
   };
 

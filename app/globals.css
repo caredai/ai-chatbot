@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
 /* include utility classes in streamdown */
 @source '../node_modules/streamdown/dist/index.js';
 
@@ -88,8 +91,8 @@
 
 /* define theme */
 @theme {
-  --font-sans: var(--font-geist);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Geist Variable", sans-serif;
+  --font-mono: "Geist Mono Variable", monospace;
 
   --breakpoint-toast-mobile: 600px;
 

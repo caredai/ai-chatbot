@@ -1,8 +1,8 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import { useSearch } from "@tanstack/react-router";
 import { DefaultChatTransport } from "ai";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
@@ -122,8 +122,11 @@ export function Chat({
     },
   });
 
-  const searchParams = useSearchParams();
-  const query = searchParams.get("query");
+  const searchParams = useSearch({
+    from: "/chat/$id",
+    shouldThrow: false,
+  });
+  const query = searchParams?.query;
 
   const [hasAppendedQuery, setHasAppendedQuery] = useState(false);
 
