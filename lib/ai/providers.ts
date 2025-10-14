@@ -4,9 +4,11 @@ import {
   extractReasoningMiddleware,
   wrapLanguageModel,
 } from "ai";
+// import { languageModelLogMiddleware } from "@/lib/ai";
+import { caredClient } from "@/lib/cared";
 import { isTestEnvironment } from "../constants";
 
-export const myProvider = isTestEnvironment
+export const _myProvider = isTestEnvironment
   ? (() => {
       const {
         artifactModel,
@@ -34,3 +36,26 @@ export const myProvider = isTestEnvironment
         "artifact-model": gateway.languageModel("xai/grok-2-1212"),
       },
     });
+
+export const myProvider = new Proxy(_myProvider, {
+  get(target, prop, receiver) {
+    if (prop === "languageModel") {
+      return (modelId: string) => {
+        let resolvedModelId = modelId;
+        if (modelId === "title-model") {
+          resolvedModelId = "openrouter:google/gemini-2.5-flash-lite";
+        } else if (modelId === "artifact-model") {
+          resolvedModelId = "openrouter:google/gemini-2.5-flash";
+        }
+        const model = caredClient.createLanguageModel(resolvedModelId);
+        // return wrapLanguageModel({
+        //   model,
+        //   middleware: languageModelLogMiddleware,
+        // });
+        return model;
+      };
+    }
+
+    return Reflect.get(target, prop, receiver);
+  },
+});

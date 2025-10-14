@@ -85,7 +85,7 @@ export function getChatHistoryPaginationKey(
   }
 
   if (pageIndex === 0) {
-    return `/api/history?limit=${PAGE_SIZE}`;
+    return `/chat/api/history?limit=${PAGE_SIZE}`;
   }
 
   const firstChatFromPage = previousPageData.chats.at(-1);
@@ -94,7 +94,7 @@ export function getChatHistoryPaginationKey(
     return null;
   }
 
-  return `/api/history?ending_before=${firstChatFromPage.id}&limit=${PAGE_SIZE}`;
+  return `/chat/api/history?ending_before=${firstChatFromPage.id}&limit=${PAGE_SIZE}`;
 }
 
 export function SidebarHistory({ user }: { user: User | undefined }) {
@@ -110,9 +110,13 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
     isValidating,
     isLoading,
     mutate,
-  } = useSWRInfinite<ChatHistory>(getChatHistoryPaginationKey, fetcher, {
-    fallbackData: [],
-  });
+  } = useSWRInfinite<ChatHistory>(
+    getChatHistoryPaginationKey,
+    fetcher as (url: string) => Promise<ChatHistory>,
+    {
+      fallbackData: [],
+    }
+  );
 
   const router = useRouter();
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -127,7 +131,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
     : false;
 
   const handleDelete = () => {
-    const deletePromise = fetch(`/api/chat?id=${deleteId}`, {
+    const deletePromise = fetch(`/chat/api/chat?id=${deleteId}`, {
       method: "DELETE",
     });
 
@@ -337,7 +341,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
 
           {hasReachedEnd ? (
             <div className="mt-8 flex w-full flex-row items-center justify-center gap-2 px-2 text-sm text-zinc-500">
-              You have reached the end of your chat history.
+              {/*You have reached the end of your chat history.*/}
             </div>
           ) : (
             <div className="mt-8 flex flex-row items-center gap-2 p-2 text-zinc-500 dark:text-zinc-400">

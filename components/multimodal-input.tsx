@@ -2,6 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { Trigger } from "@radix-ui/react-select";
+import { useServerFn } from "@tanstack/react-start";
 import type { UIMessage } from "ai";
 import equal from "fast-deep-equal";
 import {
@@ -18,10 +19,13 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useLocalStorage, useWindowSize } from "usehooks-ts";
-import { saveChatModelAsCookie } from "@/app/(chat)/actions";
+import type {
+  UploadError,
+  UploadResult,
+} from "@/app/(chat)/api/files/upload/route";
 import { SelectItem } from "@/components/ui/select";
 import { chatModels } from "@/lib/ai/models";
-import { myProvider } from "@/lib/ai/providers";
+import { setChatModelFromCookie } from "@/lib/cookie";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import type { AppUsage } from "@/lib/usage";
 import { cn } from "@/lib/utils";
@@ -61,7 +65,7 @@ function PureMultimodalInput({
   className,
   selectedVisibilityType,
   selectedModelId,
-  onModelChange,
+  onModelChange: _onModelChange,
   usage,
 }: {
   chatId: string;
@@ -102,7 +106,7 @@ function PureMultimodalInput({
   }, []);
 
   const [localStorageInput, setLocalStorageInput] = useLocalStorage(
-    "input",
+    "chat:input",
     ""
   );
 
@@ -130,8 +134,6 @@ function PureMultimodalInput({
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
 
   const submitForm = useCallback(() => {
-    window.history.replaceState({}, "", `/chat/${chatId}`);
-
     sendMessage({
       role: "user",
       parts: [
@@ -146,6 +148,8 @@ function PureMultimodalInput({
           text: input,
         },
       ],
+    }).then(() => {
+      window.history.replaceState({}, "", `/chat/${chatId}`);
     });
 
     setAttachments([]);
@@ -173,13 +177,13 @@ function PureMultimodalInput({
     formData.append("file", file);
 
     try {
-      const response = await fetch("/api/files/upload", {
+      const response = await fetch("/chat/api/files/upload", {
         method: "POST",
         body: formData,
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const data = (await response.json()) as UploadResult;
         const { url, pathname, contentType } = data;
 
         return {
@@ -188,16 +192,16 @@ function PureMultimodalInput({
           contentType,
         };
       }
-      const { error } = await response.json();
+      const { error } = (await response.json()) as UploadError;
       toast.error(error);
     } catch (_error) {
       toast.error("Failed to upload file, please try again!");
     }
   }, []);
 
-  const _modelResolver = useMemo(() => {
-    return myProvider.languageModel(selectedModelId);
-  }, [selectedModelId]);
+  // const _modelResolver = useMemo(() => {
+  //   return myProvider.languageModel(selectedModelId);
+  // }, [selectedModelId]);
 
   const contextProps = useMemo(
     () => ({
@@ -320,10 +324,10 @@ function PureMultimodalInput({
               selectedModelId={selectedModelId}
               status={status}
             />
-            <ModelSelectorCompact
-              onModelChange={onModelChange}
-              selectedModelId={selectedModelId}
-            />
+            {/*<ModelSelectorCompact*/}
+            {/*  onModelChange={onModelChange}*/}
+            {/*  selectedModelId={selectedModelId}*/}
+            {/*/>*/}
           </PromptInputTools>
 
           {status === "submitted" ? (
@@ -412,6 +416,8 @@ function PureModelSelectorCompact({
     (model) => model.id === optimisticModelId
   );
 
+  const saveChatModelAsCookie = useServerFn(setChatModelFromCookie);
+
   return (
     <PromptInputModelSelect
       onValueChange={(modelName) => {
@@ -420,7 +426,7 @@ function PureModelSelectorCompact({
           setOptimisticModelId(model.id);
           onModelChange?.(model.id);
           startTransition(() => {
-            saveChatModelAsCookie(model.id);
+            saveChatModelAsCookie({ data: { model: model.id } });
           });
         }
       }}
@@ -452,7 +458,7 @@ function PureModelSelectorCompact({
   );
 }
 
-const ModelSelectorCompact = memo(PureModelSelectorCompact);
+const _ModelSelectorCompact = memo(PureModelSelectorCompact);
 
 function PureStopButton({
   stop,

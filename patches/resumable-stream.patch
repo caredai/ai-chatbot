@@ -1,0 +1,278 @@
+diff --git a/dist/runtime.js b/dist/runtime.js
+index e0bf2ab87c474ca39dcacc2e8a5673ccf8bd321a..1ee6bb5cf72f9ccb28cc0c85427850c1f5c77f38 100644
+--- a/dist/runtime.js
++++ b/dist/runtime.js
+@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.createResumableStreamContextFactory = createResumableStreamContextFactory;
+ exports.resumeStream = resumeStream;
+ const ioredis_adapters_1 = require("./ioredis-adapters");
++const upstash_adapters_1 = require("./upstash-adapters");
+ function createResumableStreamContextFactory(defaults) {
+     return function createResumableStreamContext(options) {
+         const waitUntil = options.waitUntil || (async (p) => await p);
+@@ -17,9 +18,15 @@ function createResumableStreamContextFactory(defaults) {
+         if (options.subscriber && options.subscriber.defineCommand) {
+             ctx.subscriber = (0, ioredis_adapters_1.createSubscriberAdapter)(options.subscriber);
+         }
++        if (options.subscriber && options.subscriber.use) {
++            ctx.subscriber = (0, upstash_adapters_1.createSubscriberAdapter)(options.subscriber);
++        }
+         if (options.publisher && options.publisher.defineCommand) {
+             ctx.publisher = (0, ioredis_adapters_1.createPublisherAdapter)(options.publisher);
+         }
++        if (options.publisher && options.publisher.use) {
++            ctx.publisher = (0, upstash_adapters_1.createPublisherAdapter)(options.publisher);
++        }
+         // If user has passed undefined, initialize with defaults
+         if (!ctx.subscriber) {
+             ctx.subscriber = defaults.subscriber();
+@@ -185,6 +192,7 @@ async function resumeStream(ctx, streamId, skipCharacters) {
+                         if (Date.now() - start > 1000) {
+                             controller.error(new Error("Timeout waiting for ack"));
+                         }
++                        resolve(null);
+                     }, 1000);
+                     await ctx.subscriber.subscribe(`${ctx.keyPrefix}:chunk:${listenerId}`, async (message) => {
+                         debugLog("Received message", message);
+diff --git a/dist/runtime.js.map b/dist/runtime.js.map
+index 1e0b8336c8c6e7f94c7d9ed0fe29af139442cec4..e7c10960dc37387286d7826f9ffe2682a4b38bb8 100644
+--- a/dist/runtime.js.map
++++ b/dist/runtime.js.map
+@@ -1 +1 @@
+-{"version":3,"file":"runtime.js","sourceRoot":"","sources":["../src/runtime.ts"],"names":[],"mappings":"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"}
+\ No newline at end of file
++{"version":3,"file":"runtime.js","sourceRoot":"","sources":["../src/runtime.ts"],"names":[],"mappings":";;AAqBA,kFA2FC;AAuJD,oCAyEC;AA3UD,yDAG4B;AAC5B,yDAG4B;AAS5B,SAAgB,mCAAmC,CAAC,QAAgC;IAClF,OAAO,SAAS,4BAA4B,CAC1C,OAA4C;QAE5C,MAAM,SAAS,GAAG,OAAO,CAAC,SAAS,IAAI,CAAC,KAAK,EAAE,CAAC,EAAE,EAAE,CAAC,MAAM,CAAC,CAAC,CAAC;QAC9D,MAAM,GAAG,GAAG;YACV,SAAS,EAAE,GAAG,OAAO,CAAC,SAAS,IAAI,kBAAkB,KAAK;YAC1D,SAAS;YACT,UAAU,EAAE,OAAO,CAAC,UAAU;YAC9B,SAAS,EAAE,OAAO,CAAC,SAAS;SACG,CAAC;QAClC,IAAI,YAAY,GAAuB,EAAE,CAAC;QAE1C,kDAAkD;QAClD,IAAI,OAAO,CAAC,UAAU,IAAK,OAAO,CAAC,UAAsB,CAAC,aAAa,EAAE,CAAC;YACxE,GAAG,CAAC,UAAU,GAAG,IAAA,0CAA8B,EAAC,OAAO,CAAC,UAAqB,CAAC,CAAC;QACjF,CAAC;QACD,IAAI,OAAO,CAAC,UAAU,IAAK,OAAO,CAAC,UAA2B,CAAC,GAAG,EAAE,CAAC;YACnE,GAAG,CAAC,UAAU,GAAG,IAAA,0CAAmC,EAAC,OAAO,CAAC,UAA0B,CAAC,CAAC;QAC3F,CAAC;QACD,IAAI,OAAO,CAAC,SAAS,IAAK,OAAO,CAAC,SAAqB,CAAC,aAAa,EAAE,CAAC;YACtE,GAAG,CAAC,SAAS,GAAG,IAAA,yCAA6B,EAAC,OAAO,CAAC,SAAoB,CAAC,CAAC;QAC9E,CAAC;QACD,IAAI,OAAO,CAAC,SAAS,IAAK,OAAO,CAAC,SAA0B,CAAC,GAAG,EAAE,CAAC;YACjE,GAAG,CAAC,SAAS,GAAG,IAAA,yCAAkC,EAAC,OAAO,CAAC,SAAyB,CAAC,CAAC;QACxF,CAAC;QAED,yDAAyD;QACzD,IAAI,CAAC,GAAG,CAAC,UAAU,EAAE,CAAC;YACpB,GAAG,CAAC,UAAU,GAAG,QAAQ,CAAC,UAAU,EAAE,CAAC;YACvC,YAAY,CAAC,IAAI,CAAC,GAAG,CAAC,UAAU,CAAC,OAAO,EAAE,CAAC,CAAC;QAC9C,CAAC;QACD,IAAI,CAAC,GAAG,CAAC,SAAS,EAAE,CAAC;YACnB,GAAG,CAAC,SAAS,GAAG,QAAQ,CAAC,SAAS,EAAE,CAAC;YACrC,YAAY,CAAC,IAAI,CAAC,GAAG,CAAC,SAAS,CAAC,OAAO,EAAE,CAAC,CAAC;QAC7C,CAAC;QAED,OAAO;YACL,oBAAoB,EAAE,KAAK,EACzB,QAAgB,EAChB,cAAuB,EAC6B,EAAE;gBACtD,OAAO,oBAAoB,CACzB,OAAO,CAAC,GAAG,CAAC,YAAY,CAAC,EACzB,GAAmC,EACnC,QAAQ,EACR,cAAc,CACf,CAAC;YACJ,CAAC;YACD,wBAAwB,EAAE,KAAK,EAC7B,QAAgB,EAChB,UAAwC,EACxC,cAAuB,EACiB,EAAE;gBAC1C,MAAM,WAAW,GAAG,OAAO,CAAC,GAAG,CAAC,YAAY,CAAC,CAAC;gBAC9C,MAAM,WAAW,CAAC;gBAClB,MAAM,GAAG,CAAC,SAAS,CAAC,GAAG,CAAC,GAAG,GAAG,CAAC,SAAS,aAAa,QAAQ,EAAE,EAAE,GAAG,EAAE;oBACpE,EAAE,EAAE,EAAE,GAAG,EAAE,GAAG,EAAE;iBACjB,CAAC,CAAC;gBACH,OAAO,wBAAwB,CAC7B,WAAW,EACX,GAAmC,EACnC,QAAQ,EACR,UAAU,CACX,CAAC;YACJ,CAAC;YACD,eAAe,EAAE,KAAK,EACpB,QAAgB,EAChB,UAAwC,EACxC,cAAuB,EACiB,EAAE;gBAC1C,OAAO,qBAAqB,CAC1B,OAAO,CAAC,GAAG,CAAC,YAAY,CAAC,EACzB,GAAmC,EACnC,QAAQ,EACR,UAAU,EACV,cAAc,CACf,CAAC;YACJ,CAAC;YACD,iBAAiB,EAAE,KAAK,EAAE,QAAgB,EAAiC,EAAE;gBAC3E,MAAM,KAAK,GAAG,MAAM,GAAG,CAAC,SAAS,CAAC,GAAG,CAAC,GAAG,GAAG,CAAC,SAAS,aAAa,QAAQ,EAAE,CAAC,CAAC;gBAC/E,IAAI,KAAK,KAAK,IAAI,EAAE,CAAC;oBACnB,OAAO,IAAI,CAAC;gBACd,CAAC;gBACD,IAAI,KAAK,KAAK,UAAU,EAAE,CAAC;oBACzB,OAAO,UAAU,CAAC;gBACpB,CAAC;gBACD,OAAO,IAAI,CAAC;YACd,CAAC;SACO,CAAC;IACb,CAAC,CAAC;AACJ,CAAC;AAOD,MAAM,YAAY,GAAG,8DAA8D,CAAC;AAEpF,MAAM,UAAU,GAAG,MAAM,CAAC;AAE1B,KAAK,UAAU,oBAAoB,CACjC,WAA6B,EAC7B,GAAiC,EACjC,QAAgB,EAChB,cAAuB;IAEvB,MAAM,WAAW,CAAC;IAClB,MAAM,KAAK,GAAG,MAAM,GAAG,CAAC,SAAS,CAAC,GAAG,CAAC,GAAG,GAAG,CAAC,SAAS,aAAa,QAAQ,EAAE,CAAC,CAAC;IAC/E,IAAI,CAAC,KAAK,EAAE,CAAC;QACX,OAAO,SAAS,CAAC;IACnB,CAAC;IACD,IAAI,KAAK,KAAK,UAAU,EAAE,CAAC;QACzB,OAAO,IAAI,CAAC;IACd,CAAC;IACD,OAAO,YAAY,CAAC,GAAG,EAAE,QAAQ,EAAE,cAAc,CAAC,CAAC;AACrD,CAAC;AAED,KAAK,UAAU,wBAAwB,CACrC,WAA6B,EAC7B,GAAiC,EACjC,QAAgB,EAChB,UAAwC;IAExC,MAAM,WAAW,CAAC;IAClB,MAAM,MAAM,GAAa,EAAE,CAAC;IAC5B,IAAI,gBAAgB,GAAa,EAAE,CAAC;IACpC,IAAI,kBAA8B,CAAC;IACnC,GAAG,CAAC,SAAS,CACX,IAAI,OAAO,CAAO,CAAC,OAAO,EAAE,EAAE;QAC5B,kBAAkB,GAAG,OAAO,CAAC;IAC/B,CAAC,CAAC,CACH,CAAC;IACF,IAAI,MAAM,GAAG,KAAK,CAAC;IACnB,iFAAiF;IACjF,gEAAgE;IAChE,MAAM,GAAG,CAAC,UAAU,CAAC,SAAS,CAC5B,GAAG,GAAG,CAAC,SAAS,YAAY,QAAQ,EAAE,EACtC,KAAK,EAAE,OAAe,EAAE,EAAE;QACxB,MAAM,aAAa,GAAG,IAAI,CAAC,KAAK,CAAC,OAAO,CAAwB,CAAC;QACjE,QAAQ,CAAC,uBAAuB,EAAE,aAAa,CAAC,UAAU,CAAC,CAAC;QAC5D,gBAAgB,CAAC,IAAI,CAAC,aAAa,CAAC,UAAU,CAAC,CAAC;QAChD,QAAQ,CAAC,eAAe,EAAE,MAAM,CAAC,MAAM,EAAE,aAAa,CAAC,cAAc,CAAC,CAAC;QACvE,MAAM,YAAY,GAAG,MAAM,CAAC,IAAI,CAAC,EAAE,CAAC,CAAC,KAAK,CAAC,aAAa,CAAC,cAAc,IAAI,CAAC,CAAC,CAAC;QAC9E,QAAQ,CAAC,gBAAgB,EAAE,YAAY,CAAC,MAAM,CAAC,CAAC;QAChD,MAAM,QAAQ,GAAuB,EAAE,CAAC;QACxC,QAAQ,CAAC,IAAI,CACX,GAAG,CAAC,SAAS,CAAC,OAAO,CAAC,GAAG,GAAG,CAAC,SAAS,UAAU,aAAa,CAAC,UAAU,EAAE,EAAE,YAAY,CAAC,CAC1F,CAAC;QACF,IAAI,MAAM,EAAE,CAAC;YACX,QAAQ,CAAC,IAAI,CACX,GAAG,CAAC,SAAS,CAAC,OAAO,CAAC,GAAG,GAAG,CAAC,SAAS,UAAU,aAAa,CAAC,UAAU,EAAE,EAAE,YAAY,CAAC,CAC1F,CAAC;QACJ,CAAC;QACD,MAAM,OAAO,CAAC,GAAG,CAAC,QAAQ,CAAC,CAAC;IAC9B,CAAC,CACF,CAAC;IAEF,OAAO,IAAI,cAAc,CAAS;QAChC,KAAK,CAAC,UAAU;YACd,MAAM,MAAM,GAAG,UAAU,EAAE,CAAC;YAC5B,MAAM,MAAM,GAAG,MAAM,CAAC,SAAS,EAAE,CAAC;YAClC,SAAS,IAAI;gBACX,MAAM,CAAC,IAAI,EAAE,CAAC,IAAI,CAAC,KAAK,EAAE,EAAE,IAAI,EAAE,KAAK,EAAE,EAAE,EAAE;oBAC3C,IAAI,IAAI,EAAE,CAAC;wBACT,MAAM,GAAG,IAAI,CAAC;wBACd,QAAQ,CAAC,aAAa,CAAC,CAAC;wBACxB,IAAI,CAAC;4BACH,UAAU,CAAC,KAAK,EAAE,CAAC;wBACrB,CAAC;wBAAC,OAAO,CAAC,EAAE,CAAC;4BACX,mBAAmB;wBACrB,CAAC;wBACD,MAAM,QAAQ,GAAuB,EAAE,CAAC;wBACxC,QAAQ,CAAC,0BAA0B,CAAC,CAAC;wBACrC,QAAQ,CAAC,IAAI,CACX,GAAG,CAAC,SAAS,CAAC,GAAG,CAAC,GAAG,GAAG,CAAC,SAAS,aAAa,QAAQ,EAAE,EAAE,UAAU,EAAE;4BACrE,EAAE,EAAE,EAAE,GAAG,EAAE,GAAG,EAAE;yBACjB,CAAC,CACH,CAAC;wBACF,QAAQ,CAAC,IAAI,CAAC,GAAG,CAAC,UAAU,CAAC,WAAW,CAAC,GAAG,GAAG,CAAC,SAAS,YAAY,QAAQ,EAAE,CAAC,CAAC,CAAC;wBAClF,KAAK,MAAM,UAAU,IAAI,gBAAgB,EAAE,CAAC;4BAC1C,QAAQ,CAAC,yBAAyB,EAAE,UAAU,CAAC,CAAC;4BAChD,QAAQ,CAAC,IAAI,CACX,GAAG,CAAC,SAAS,CAAC,OAAO,CAAC,GAAG,GAAG,CAAC,SAAS,UAAU,UAAU,EAAE,EAAE,YAAY,CAAC,CAC5E,CAAC;wBACJ,CAAC;wBACD,MAAM,OAAO,CAAC,GAAG,CAAC,QAAQ,CAAC,CAAC;wBAC5B,kBAAkB,aAAlB,kBAAkB,uBAAlB,kBAAkB,EAAI,CAAC;wBACvB,QAAQ,CAAC,cAAc,CAAC,CAAC;wBACzB,OAAO;oBACT,CAAC;oBACD,MAAM,CAAC,IAAI,CAAC,KAAK,CAAC,CAAC;oBACnB,IAAI,CAAC;wBACH,QAAQ,CAAC,gBAAgB,EAAE,KAAK,CAAC,CAAC;wBAClC,UAAU,CAAC,OAAO,CAAC,KAAK,CAAC,CAAC;oBAC5B,CAAC;oBAAC,OAAO,CAAC,EAAE,CAAC;wBACX,+EAA+E;oBACjF,CAAC;oBACD,MAAM,QAAQ,GAAuB,EAAE,CAAC;oBACxC,KAAK,MAAM,UAAU,IAAI,gBAAgB,EAAE,CAAC;wBAC1C,QAAQ,CAAC,iBAAiB,EAAE,UAAU,CAAC,CAAC;wBACxC,QAAQ,CAAC,IAAI,CAAC,GAAG,CAAC,SAAS,CAAC,OAAO,CAAC,GAAG,GAAG,CAAC,SAAS,UAAU,UAAU,EAAE,EAAE,KAAK,CAAC,CAAC,CAAC;oBACtF,CAAC;oBACD,MAAM,OAAO,CAAC,GAAG,CAAC,QAAQ,CAAC,CAAC;oBAC5B,IAAI,EAAE,CAAC;gBACT,CAAC,CAAC,CAAC;YACL,CAAC;YACD,IAAI,EAAE,CAAC;QACT,CAAC;KACF,CAAC,CAAC;AACL,CAAC;AACD;;;;;;GAMG;AACH,KAAK,UAAU,qBAAqB,CAClC,WAA6B,EAC7B,GAAiC,EACjC,QAAgB,EAChB,UAAwC,EACxC,cAAuB;IAEvB,MAAM,WAAW,CAAC;IAElB,MAAM,oBAAoB,GAAG,MAAM,UAAU,CAC3C,GAAG,CAAC,SAAS,EACb,GAAG,GAAG,CAAC,SAAS,aAAa,QAAQ,EAAE,CACxC,CAAC;IACF,QAAQ,CAAC,sBAAsB,EAAE,oBAAoB,CAAC,CAAC;IACvD,IAAI,oBAAoB,KAAK,UAAU,EAAE,CAAC;QACxC,OAAO,IAAI,CAAC;IACd,CAAC;IACD,IAAI,oBAAoB,GAAG,CAAC,EAAE,CAAC;QAC7B,OAAO,YAAY,CAAC,GAAG,EAAE,QAAQ,EAAE,cAAc,CAAC,CAAC;IACrD,CAAC;IACD,OAAO,wBAAwB,CAAC,WAAW,EAAE,GAAG,EAAE,QAAQ,EAAE,UAAU,CAAC,CAAC;AAC1E,CAAC;AAEM,KAAK,UAAU,YAAY,CAChC,GAAiC,EACjC,QAAgB,EAChB,cAAuB;IAEvB,MAAM,UAAU,GAAG,MAAM,CAAC,UAAU,EAAE,CAAC;IACvC,OAAO,IAAI,OAAO,CAAgC,CAAC,OAAO,EAAE,MAAM,EAAE,EAAE;QACpE,MAAM,cAAc,GAAG,IAAI,cAAc,CAAS;YAChD,KAAK,CAAC,KAAK,CAAC,UAAU;gBACpB,IAAI,CAAC;oBACH,QAAQ,CAAC,iBAAiB,EAAE,QAAQ,EAAE,UAAU,CAAC,CAAC;oBAClD,MAAM,OAAO,GAAG,KAAK,IAAI,EAAE;wBACzB,MAAM,GAAG,CAAC,UAAU,CAAC,WAAW,CAAC,GAAG,GAAG,CAAC,SAAS,UAAU,UAAU,EAAE,CAAC,CAAC;oBAC3E,CAAC,CAAC;oBACF,MAAM,KAAK,GAAG,IAAI,CAAC,GAAG,EAAE,CAAC;oBACzB,MAAM,OAAO,GAAG,UAAU,CAAC,KAAK,IAAI,EAAE;wBACpC,MAAM,OAAO,EAAE,CAAC;wBAChB,MAAM,GAAG,GAAG,MAAM,GAAG,CAAC,SAAS,CAAC,GAAG,CAAC,GAAG,GAAG,CAAC,SAAS,aAAa,QAAQ,EAAE,CAAC,CAAC;wBAC7E,IAAI,GAAG,KAAK,UAAU,EAAE,CAAC;4BACvB,OAAO,CAAC,IAAI,CAAC,CAAC;wBAChB,CAAC;wBACD,IAAI,IAAI,CAAC,GAAG,EAAE,GAAG,KAAK,GAAG,IAAI,EAAE,CAAC;4BAC9B,UAAU,CAAC,KAAK,CAAC,IAAI,KAAK,CAAC,yBAAyB,CAAC,CAAC,CAAC;wBACzD,CAAC;wBACD,OAAO,CAAC,IAAI,CAAC,CAAC;oBAChB,CAAC,EAAE,IAAI,CAAC,CAAC;oBACT,MAAM,GAAG,CAAC,UAAU,CAAC,SAAS,CAC5B,GAAG,GAAG,CAAC,SAAS,UAAU,UAAU,EAAE,EACtC,KAAK,EAAE,OAAe,EAAE,EAAE;wBACxB,QAAQ,CAAC,kBAAkB,EAAE,OAAO,CAAC,CAAC;wBACtC,wEAAwE;wBACxE,YAAY,CAAC,OAAO,CAAC,CAAC;wBACtB,OAAO,CAAC,cAAc,CAAC,CAAC;wBACxB,IAAI,OAAO,KAAK,YAAY,EAAE,CAAC;4BAC7B,IAAI,CAAC;gCACH,UAAU,CAAC,KAAK,EAAE,CAAC;4BACrB,CAAC;4BAAC,OAAO,CAAC,EAAE,CAAC;gCACX,yDAAyD;gCACzD,sCAAsC;gCACtC,0CAA0C;gCAC1C,IAAI,OAAO,EAAE,EAAE,CAAC;oCACd,OAAO,CAAC,KAAK,CAAC,CAAC,CAAC,CAAC;gCACnB,CAAC;4BACH,CAAC;4BACD,MAAM,OAAO,EAAE,CAAC;4BAChB,OAAO;wBACT,CAAC;wBACD,IAAI,CAAC;4BACH,UAAU,CAAC,OAAO,CAAC,OAAO,CAAC,CAAC;wBAC9B,CAAC;wBAAC,OAAO,CAAC,EAAE,CAAC;4BACX,yDAAyD;4BACzD,sCAAsC;4BACtC,0CAA0C;4BAC1C,IAAI,OAAO,EAAE,EAAE,CAAC;gCACd,OAAO,CAAC,KAAK,CAAC,CAAC,CAAC,CAAC;4BACnB,CAAC;4BACD,MAAM,OAAO,EAAE,CAAC;wBAClB,CAAC;oBACH,CAAC,CACF,CAAC;oBACF,MAAM,GAAG,CAAC,SAAS,CAAC,OAAO,CACzB,GAAG,GAAG,CAAC,SAAS,YAAY,QAAQ,EAAE,EACtC,IAAI,CAAC,SAAS,CAAC;wBACb,UAAU;wBACV,cAAc;qBACf,CAAC,CACH,CAAC;gBACJ,CAAC;gBAAC,OAAO,CAAC,EAAE,CAAC;oBACX,MAAM,CAAC,CAAC,CAAC,CAAC;gBACZ,CAAC;YACH,CAAC;SACF,CAAC,CAAC;IACL,CAAC,CAAC,CAAC;AACL,CAAC;AAED,SAAS,UAAU,CAAC,SAAoB,EAAE,GAAW;IACnD,OAAO,SAAS,CAAC,IAAI,CAAC,GAAG,CAAC,CAAC,KAAK,CAAC,CAAC,MAAM,EAAE,EAAE;QAC1C,MAAM,WAAW,GAAG,MAAM,CAAC,MAAM,CAAC,CAAC;QACnC,IAAI,WAAW,CAAC,QAAQ,CAAC,6CAA6C,CAAC,EAAE,CAAC;YACxE,OAAO,UAAU,CAAC;QACpB,CAAC;QACD,MAAM,MAAM,CAAC;IACf,CAAC,CAAC,CAAC;AACL,CAAC;AAED,SAAS,OAAO;IACd,OAAO,OAAO,CAAC,GAAG,CAAC,KAAK,CAAC;AAC3B,CAAC;AAED,SAAS,QAAQ,CAAC,GAAG,QAAmB;IACtC,IAAI,OAAO,EAAE,EAAE,CAAC;QACd,OAAO,CAAC,GAAG,CAAC,GAAG,QAAQ,CAAC,CAAC;IAC3B,CAAC;AACH,CAAC"}
+\ No newline at end of file
+diff --git a/dist/types.d.ts b/dist/types.d.ts
+index c449d0d0bbfd533d0409498e6f707a541746307b..bef010a57af327129fa5eefcec20bb63959e0216 100644
+--- a/dist/types.d.ts
++++ b/dist/types.d.ts
+@@ -1,4 +1,5 @@
+-import type { Redis } from "ioredis";
++import type { Redis as IORedis } from "ioredis";
++import type { Redis as UpstashRedis } from "@upstash/redis";
+ export interface CreateResumableStreamContextOptions {
+     /**
+      * The prefix for the keys used by the resumable streams. Defaults to `resumable-stream`.
+@@ -15,11 +16,11 @@ export interface CreateResumableStreamContextOptions {
+     /**
+      * A pubsub subscriber. Designed to be compatible with clients from the `redis` package.
+      */
+-    subscriber?: Subscriber | Redis;
++    subscriber?: Subscriber | IORedis | UpstashRedis;
+     /**
+      * A pubsub publisher. Designed to be compatible with clients from the `redis` package.
+      */
+-    publisher?: Publisher | Redis;
++    publisher?: Publisher | IORedis | UpstashRedis;
+ }
+ export interface ResumableStreamContext {
+     /**
+diff --git a/dist/upstash-adapters.d.ts b/dist/upstash-adapters.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..f866a23af4dfabb1d40e1c9069df6beae71b143b
+--- /dev/null
++++ b/dist/upstash-adapters.d.ts
+@@ -0,0 +1,14 @@
++import { Redis } from "@upstash/redis/cloudflare";
++import { Publisher, Subscriber } from "./types";
++/**
++ * Creates a Subscriber adapter for a Redis client.
++ * @param client - The Redis client to adapt
++ * @returns A Subscriber interface compatible with the resumable stream
++ */
++export declare function createSubscriberAdapter(client: Redis): Subscriber;
++/**
++ * Creates a Publisher adapter for a Redis client.
++ * @param client - The Redis client to adapt
++ * @returns A Publisher interface compatible with the resumable stream
++ */
++export declare function createPublisherAdapter(client: Redis): Publisher;
+diff --git a/dist/upstash-adapters.js b/dist/upstash-adapters.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..2bb01c68289d21a02743fb7063b7dfaa6ed01559
+--- /dev/null
++++ b/dist/upstash-adapters.js
+@@ -0,0 +1,54 @@
++"use strict";
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.createSubscriberAdapter = createSubscriberAdapter;
++exports.createPublisherAdapter = createPublisherAdapter;
++/**
++ * Creates a Subscriber adapter for a Redis client.
++ * @param client - The Redis client to adapt
++ * @returns A Subscriber interface compatible with the resumable stream
++ */
++function createSubscriberAdapter(client) {
++    const activeSubscriptions = new Map();
++    const adapter = {
++        connect: () => Promise.resolve(),
++        subscribe: async function (channel, callback) {
++            var _a;
++            const subscriber = (_a = activeSubscriptions.get(channel)) !== null && _a !== void 0 ? _a : client.subscribe(channel);
++            subscriber.on("message", (message) => {
++                if (message.channel === channel) {
++                    callback(typeof message.message === "string" ? message.message : JSON.stringify(message.message));
++                }
++            });
++            activeSubscriptions.set(channel, subscriber);
++        },
++        unsubscribe: async (channel) => {
++            const subscriber = activeSubscriptions.get(channel);
++            if (subscriber) {
++                await subscriber.unsubscribe();
++                activeSubscriptions.delete(channel);
++            }
++        },
++    };
++    return adapter;
++}
++/**
++ * Creates a Publisher adapter for a Redis client.
++ * @param client - The Redis client to adapt
++ * @returns A Publisher interface compatible with the resumable stream
++ */
++function createPublisherAdapter(client) {
++    const adapter = {
++        connect: () => Promise.resolve(),
++        publish: (channel, message) => client.publish(channel, JSON.stringify(message)),
++        set: (key, value, options) => {
++            if (options === null || options === void 0 ? void 0 : options.EX) {
++                return client.setex(key, options.EX, value);
++            }
++            return client.set(key, value);
++        },
++        get: (key) => client.get(key),
++        incr: (key) => client.incr(key),
++    };
++    return adapter;
++}
++//# sourceMappingURL=upstash-adapters.js.map
+\ No newline at end of file
+diff --git a/dist/upstash-adapters.js.map b/dist/upstash-adapters.js.map
+new file mode 100644
+index 0000000000000000000000000000000000000000..119ebcdb6d26c7dc11d504921b5856321e3e7c6a
+--- /dev/null
++++ b/dist/upstash-adapters.js.map
+@@ -0,0 +1 @@
++{"version":3,"file":"upstash-adapters.js","sourceRoot":"","sources":["../src/upstash-adapters.ts"],"names":[],"mappings":";;AAUA,0DAwBC;AAOD,wDAeC;AAnDD;;;;GAIG;AACH,SAAgB,uBAAuB,CAAC,MAAa;IACnD,MAAM,mBAAmB,GAAiC,IAAI,GAAG,EAAE,CAAC;IACpE,MAAM,OAAO,GAAe;QAC1B,OAAO,EAAE,GAAG,EAAE,CAAC,OAAO,CAAC,OAAO,EAAE;QAChC,SAAS,EAAE,KAAK,WAAW,OAAe,EAAE,QAAmC;;YAC7E,MAAM,UAAU,GAAG,MAAA,mBAAmB,CAAC,GAAG,CAAC,OAAO,CAAC,mCAAI,MAAM,CAAC,SAAS,CAAC,OAAO,CAAC,CAAC;YACjF,UAAU,CAAC,EAAE,CAAC,SAAS,EAAE,CAAC,OAAO,EAAE,EAAE;gBACnC,IAAI,OAAO,CAAC,OAAO,KAAK,OAAO,EAAE,CAAC;oBAChC,QAAQ,CACN,OAAO,OAAO,CAAC,OAAO,KAAK,QAAQ,CAAC,CAAC,CAAC,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC,IAAI,CAAC,SAAS,CAAC,OAAO,CAAC,OAAO,CAAC,CACxF,CAAC;gBACJ,CAAC;YACH,CAAC,CAAC,CAAC;YACH,mBAAmB,CAAC,GAAG,CAAC,OAAO,EAAE,UAAU,CAAC,CAAC;QAC/C,CAAC;QACD,WAAW,EAAE,KAAK,EAAE,OAAe,EAAE,EAAE;YACrC,MAAM,UAAU,GAAG,mBAAmB,CAAC,GAAG,CAAC,OAAO,CAAC,CAAC;YACpD,IAAI,UAAU,EAAE,CAAC;gBACf,MAAM,UAAU,CAAC,WAAW,EAAE,CAAC;gBAC/B,mBAAmB,CAAC,MAAM,CAAC,OAAO,CAAC,CAAC;YACtC,CAAC;QACH,CAAC;KACF,CAAC;IACF,OAAO,OAAO,CAAC;AACjB,CAAC;AAED;;;;GAIG;AACH,SAAgB,sBAAsB,CAAC,MAAa;IAClD,MAAM,OAAO,GAAc;QACzB,OAAO,EAAE,GAAG,EAAE,CAAC,OAAO,CAAC,OAAO,EAAE;QAChC,OAAO,EAAE,CAAC,OAAe,EAAE,OAAwB,EAAE,EAAE,CACrD,MAAM,CAAC,OAAO,CAAC,OAAO,EAAE,IAAI,CAAC,SAAS,CAAC,OAAO,CAAC,CAAC;QAClD,GAAG,EAAE,CAAC,GAAW,EAAE,KAAsB,EAAE,OAAyB,EAAE,EAAE;YACtE,IAAI,OAAO,aAAP,OAAO,uBAAP,OAAO,CAAE,EAAE,EAAE,CAAC;gBAChB,OAAO,MAAM,CAAC,KAAK,CAAC,GAAG,EAAE,OAAO,CAAC,EAAE,EAAE,KAAK,CAAC,CAAC;YAC9C,CAAC;YACD,OAAO,MAAM,CAAC,GAAG,CAAC,GAAG,EAAE,KAAK,CAAC,CAAC;QAChC,CAAC;QACD,GAAG,EAAE,CAAC,GAAW,EAAE,EAAE,CAAC,MAAM,CAAC,GAAG,CAAC,GAAG,CAAC;QACrC,IAAI,EAAE,CAAC,GAAW,EAAE,EAAE,CAAC,MAAM,CAAC,IAAI,CAAC,GAAG,CAAC;KACxC,CAAC;IACF,OAAO,OAAO,CAAC;AACjB,CAAC"}
+\ No newline at end of file
+diff --git a/dist/upstash.d.ts b/dist/upstash.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..9f18f4b3e8a3cffb6913a2aa6bc728d2a0d51efe
+--- /dev/null
++++ b/dist/upstash.d.ts
+@@ -0,0 +1,15 @@
++export * from "./types";
++export { resumeStream } from "./runtime";
++/**
++ * Creates a global context for resumable streams from which you can create resumable streams.
++ *
++ * Call `resumableStream` on the returned context object to create a stream.
++ *
++ * @param options - The context options.
++ * @param options.keyPrefix - The prefix for the keys used by the resumable streams. Defaults to `resumable-stream`.
++ * @param options.waitUntil - A function that takes a promise and ensures that the current program stays alive until the promise is resolved.
++ * @param options.subscriber - A pubsub subscriber. Designed to be compatible with clients from the `redis` package. If not provided, a new client will be created based on REDIS_URL or KV_URL environment variables.
++ * @param options.publisher - A pubsub publisher. Designed to be compatible with clients from the `redis` package. If not provided, a new client will be created based on REDIS_URL or KV_URL environment variables.
++ * @returns A resumable stream context.
++ */
++export declare const createResumableStreamContext: (options: import("./types").CreateResumableStreamContextOptions) => import("./types").ResumableStreamContext;
+diff --git a/dist/upstash.js b/dist/upstash.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..7eb42752627e5cf5167d5ff9dcad2ecaed4f7823
+--- /dev/null
++++ b/dist/upstash.js
+@@ -0,0 +1,40 @@
++"use strict";
++var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
++    if (k2 === undefined) k2 = k;
++    var desc = Object.getOwnPropertyDescriptor(m, k);
++    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
++      desc = { enumerable: true, get: function() { return m[k]; } };
++    }
++    Object.defineProperty(o, k2, desc);
++}) : (function(o, m, k, k2) {
++    if (k2 === undefined) k2 = k;
++    o[k2] = m[k];
++}));
++var __exportStar = (this && this.__exportStar) || function(m, exports) {
++    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.createResumableStreamContext = exports.resumeStream = void 0;
++const cloudflare_1 = require("@upstash/redis/cloudflare");
++const runtime_1 = require("./runtime");
++const upstash_adapters_1 = require("./upstash-adapters");
++__exportStar(require("./types"), exports);
++var runtime_2 = require("./runtime");
++Object.defineProperty(exports, "resumeStream", { enumerable: true, get: function () { return runtime_2.resumeStream; } });
++/**
++ * Creates a global context for resumable streams from which you can create resumable streams.
++ *
++ * Call `resumableStream` on the returned context object to create a stream.
++ *
++ * @param options - The context options.
++ * @param options.keyPrefix - The prefix for the keys used by the resumable streams. Defaults to `resumable-stream`.
++ * @param options.waitUntil - A function that takes a promise and ensures that the current program stays alive until the promise is resolved.
++ * @param options.subscriber - A pubsub subscriber. Designed to be compatible with clients from the `redis` package. If not provided, a new client will be created based on REDIS_URL or KV_URL environment variables.
++ * @param options.publisher - A pubsub publisher. Designed to be compatible with clients from the `redis` package. If not provided, a new client will be created based on REDIS_URL or KV_URL environment variables.
++ * @returns A resumable stream context.
++ */
++exports.createResumableStreamContext = (0, runtime_1.createResumableStreamContextFactory)({
++    publisher: () => (0, upstash_adapters_1.createPublisherAdapter)(cloudflare_1.Redis.fromEnv(process.env)),
++    subscriber: () => (0, upstash_adapters_1.createSubscriberAdapter)(cloudflare_1.Redis.fromEnv(process.env)),
++});
++//# sourceMappingURL=upstash.js.map
+\ No newline at end of file
+diff --git a/dist/upstash.js.map b/dist/upstash.js.map
+new file mode 100644
+index 0000000000000000000000000000000000000000..1d82493f574d35c259a244f3a291544503f9bdaa
+--- /dev/null
++++ b/dist/upstash.js.map
+@@ -0,0 +1 @@
++{"version":3,"file":"upstash.js","sourceRoot":"","sources":["../src/upstash.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;;;AAAA,0DAAkD;AAClD,uCAAgE;AAChE,yDAAqF;AAErF,0CAAwB;AACxB,qCAAyC;AAAhC,uGAAA,YAAY,OAAA;AAErB;;;;;;;;;;;GAWG;AACU,QAAA,4BAA4B,GAAG,IAAA,6CAAmC,EAAC;IAC9E,SAAS,EAAE,GAAG,EAAE,CAAC,IAAA,yCAAsB,EAAC,kBAAK,CAAC,OAAO,CAAC,OAAO,CAAC,GAAU,CAAC,CAAC;IAC1E,UAAU,EAAE,GAAG,EAAE,CAAC,IAAA,0CAAuB,EAAC,kBAAK,CAAC,OAAO,CAAC,OAAO,CAAC,GAAU,CAAC,CAAC;CAC7E,CAAC,CAAC"}
+\ No newline at end of file
+diff --git a/package.json b/package.json
+index 44d441b60f7cecfa39176ef3deaf034d4c3545b8..bc63a78bf8f82b63bfabc1a08130faa7b122ae99 100644
+--- a/package.json
++++ b/package.json
+@@ -13,12 +13,23 @@
+   "exports": {
+     ".": "./dist/index.js",
+     "./ioredis": "./dist/ioredis.js",
+-    "./redis": "./dist/redis.js"
++    "./redis": "./dist/redis.js",
++    "./upstash": "./dist/upstash.js"
++  },
++  "scripts": {
++    "test": "DEBUG=1 vitest",
++    "test:watch": "vitest watch",
++    "clean": "rimraf dist",
++    "build": "tsc -p tsconfig.build.json",
++    "prepublishOnly": "pnpm build",
++    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
++    "docs": "rimraf docs && pnpm typedoc"
+   },
+   "devDependencies": {
+     "@types/node": "^20",
+     "@types/react": "^19",
+     "@types/react-dom": "^19",
++    "@upstash/redis": "^1",
+     "@vercel/functions": "^2",
+     "dotenv": "^16.5.0",
+     "ioredis": "^5.6.1",
+@@ -34,12 +45,5 @@
+   "keywords": [],
+   "author": "",
+   "license": "ISC",
+-  "scripts": {
+-    "test": "DEBUG=1 vitest",
+-    "test:watch": "vitest watch",
+-    "clean": "rimraf dist",
+-    "build": "tsc -p tsconfig.build.json",
+-    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+-    "docs": "rimraf docs && pnpm typedoc"
+-  }
++  "packageManager": "pnpm@10.18.2"
+ }

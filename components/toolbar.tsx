@@ -131,7 +131,13 @@ const Tool = ({
   );
 };
 
-const randomArr = [...new Array(6)].map((_x) => nanoid(5));
+let randomArr_: string[] | undefined;
+const randomArr = () => {
+  if (!randomArr_) {
+    randomArr_ = [...new Array(6)].map((_x) => nanoid(5));
+  }
+  return randomArr_;
+};
 
 const ReadingLevelSelector = ({
   setSelectedTool,
@@ -170,7 +176,7 @@ const ReadingLevelSelector = ({
 
   return (
     <div className="relative flex flex-col items-center justify-end">
-      {randomArr.map((id) => (
+      {randomArr().map((id) => (
         <motion.div
           animate={{ opacity: 1 }}
           className="flex size-[40px] flex-row items-center justify-center"

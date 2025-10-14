@@ -9,8 +9,7 @@ import { Chat } from "@/components/chat";
 import { DataStreamHandler } from "@/components/data-stream-handler";
 import { MessageIcon } from "@/components/icons";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
-import { auth } from "@/lib/auth";
-import { getChatModelFromCookie } from "@/lib/cookie";
+import { auth } from "@/lib/cared";
 import {
   getChatByIdFromServer,
   getMessagesByChatIdFromServer,
@@ -32,7 +31,12 @@ export const Route = createFileRoute("/chat/$id")({
 
     const session = await auth();
     if (!session) {
-      throw redirect({ to: "/" });
+      throw redirect({
+        to: "/auth/sign-in",
+        search: {
+          redirectTo: "/chat",
+        },
+      });
     }
 
     if (chat.visibility === "private") {
@@ -51,13 +55,10 @@ export const Route = createFileRoute("/chat/$id")({
 
     const uiMessages: any = convertToUIMessages(messagesFromDb);
 
-    const chatModelFromCookie = await getChatModelFromCookie();
-
     return {
       session,
       chat,
       uiMessages,
-      chatModelFromCookie,
     };
   },
   component: RouteComponent,
@@ -65,32 +66,14 @@ export const Route = createFileRoute("/chat/$id")({
 });
 
 function RouteComponent() {
-  const { session, chat, uiMessages, chatModelFromCookie } =
-    Route.useLoaderData();
-
-  if (!chatModelFromCookie) {
-    return (
-      <>
-        <Chat
-          autoResume={true}
-          id={chat.id}
-          initialChatModel={DEFAULT_CHAT_MODEL}
-          initialLastContext={chat.lastContext ?? undefined}
-          initialMessages={uiMessages}
-          initialVisibilityType={chat.visibility}
-          isReadonly={session?.user?.id !== chat.userId}
-        />
-        <DataStreamHandler />
-      </>
-    );
-  }
+  const { session, chat, uiMessages } = Route.useLoaderData();
 
   return (
     <>
       <Chat
         autoResume={true}
         id={chat.id}
-        initialChatModel={chatModelFromCookie}
+        initialChatModel={DEFAULT_CHAT_MODEL}
         initialLastContext={chat.lastContext ?? undefined}
         initialMessages={uiMessages}
         initialVisibilityType={chat.visibility}

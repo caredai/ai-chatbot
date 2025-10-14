@@ -20,6 +20,7 @@ import {
 import { useArtifactSelector } from "@/hooks/use-artifact";
 import { useAutoResume } from "@/hooks/use-auto-resume";
 import { useChatVisibility } from "@/hooks/use-chat-visibility";
+import { useSelectedModel } from "@/hooks/use-model";
 import type { Vote } from "@/lib/db/schema";
 import { ChatSDKError } from "@/lib/errors";
 import type { Attachment, ChatMessage } from "@/lib/types";
@@ -36,7 +37,7 @@ import type { VisibilityType } from "./visibility-selector";
 export function Chat({
   id,
   initialMessages,
-  initialChatModel,
+  initialChatModel: _initialChatModel,
   initialVisibilityType,
   isReadonly,
   autoResume,
@@ -61,7 +62,8 @@ export function Chat({
   const [input, setInput] = useState<string>("");
   const [usage, setUsage] = useState<AppUsage | undefined>(initialLastContext);
   const [showCreditCardAlert, setShowCreditCardAlert] = useState(false);
-  const [currentModelId, setCurrentModelId] = useState(initialChatModel);
+  const { selectedModel: currentModelId, setSelectedModel: setCurrentModelId } =
+    useSelectedModel();
   const currentModelIdRef = useRef(currentModelId);
 
   useEffect(() => {
@@ -82,7 +84,7 @@ export function Chat({
     experimental_throttle: 100,
     generateId: generateUUID,
     transport: new DefaultChatTransport({
-      api: "/api/chat",
+      api: "/chat/api/chat",
       fetch: fetchWithErrorHandlers,
       prepareSendMessagesRequest(request) {
         return {
@@ -118,6 +120,11 @@ export function Chat({
             description: error.message,
           });
         }
+      } else {
+        toast({
+          type: "error",
+          description: error.message,
+        });
       }
     },
   });
@@ -143,7 +150,8 @@ export function Chat({
   }, [query, sendMessage, hasAppendedQuery, id]);
 
   const { data: votes } = useSWR<Vote[]>(
-    messages.length >= 2 ? `/api/vote?chatId=${id}` : null,
+    messages.length >= 2 ? `/chat/api/vote?chatId=${id}` : null,
+    // @ts-expect-error
     fetcher
   );
 
@@ -172,7 +180,7 @@ export function Chat({
           isReadonly={isReadonly}
           messages={messages}
           regenerate={regenerate}
-          selectedModelId={initialChatModel}
+          selectedModelId={currentModelId}
           setMessages={setMessages}
           status={status}
           votes={votes}
@@ -185,6 +193,7 @@ export function Chat({
               chatId={id}
               input={input}
               messages={messages}
+              // @ts-expect-error
               onModelChange={setCurrentModelId}
               selectedModelId={currentModelId}
               selectedVisibilityType={visibilityType}

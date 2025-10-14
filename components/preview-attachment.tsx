@@ -1,4 +1,3 @@
-import Image from "next/image";
 import type { Attachment } from "@/lib/types";
 import { Loader } from "./elements/loader";
 import { CrossSmallIcon } from "./icons";
@@ -21,7 +20,8 @@ export const PreviewAttachment = ({
       data-testid="input-attachment-preview"
     >
       {contentType?.startsWith("image") ? (
-        <Image
+        // biome-ignore lint/performance/noImgElement: "Generated image without explicit size"
+        <img
           alt={name ?? "An image attachment"}
           className="size-full object-cover"
           height={64}

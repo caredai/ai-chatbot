@@ -93,9 +93,9 @@ function PureArtifact({
     mutate: mutateDocuments,
   } = useSWR<Document[]>(
     artifact.documentId !== "init" && artifact.status !== "streaming"
-      ? `/api/document?id=${artifact.documentId}`
+      ? `/chat/api/document?id=${artifact.documentId}`
       : null,
-    fetcher
+    fetcher as (url: string) => Promise<Document[]>
   );
 
   const [mode, setMode] = useState<"edit" | "diff">("edit");
@@ -133,7 +133,7 @@ function PureArtifact({
       }
 
       mutate<Document[]>(
-        `/api/document?id=${artifact.documentId}`,
+        `/chat/api/document?id=${artifact.documentId}`,
         async (currentDocuments) => {
           if (!currentDocuments) {
             return [];
@@ -147,7 +147,7 @@ function PureArtifact({
           }
 
           if (currentDocument.content !== updatedContent) {
-            await fetch(`/api/document?id=${artifact.documentId}`, {
+            await fetch(`/chat/api/document?id=${artifact.documentId}`, {
               method: "POST",
               body: JSON.stringify({
                 title: artifact.title,

@@ -1,4 +1,4 @@
-import { geolocation } from "@vercel/functions";
+import { waitUntil } from "cloudflare:workers";
 import {
   convertToModelMessages,
   createUIMessageStream,
@@ -7,15 +7,14 @@ import {
   stepCountIs,
   streamText,
 } from "ai";
-import { unstable_cache as cache } from "next/cache";
-import { after } from "next/server";
 import {
   createResumableStreamContext,
   type ResumableStreamContext,
-} from "resumable-stream";
+} from "resumable-stream/upstash";
 import type { ModelCatalog } from "tokenlens/core";
 import { fetchModels } from "tokenlens/fetch";
 import { getUsage } from "tokenlens/helpers";
+import { z } from "zod/v4";
 import { auth, type UserType } from "@/app/(auth)/auth";
 import type { VisibilityType } from "@/components/visibility-selector";
 import { entitlementsByUserType } from "@/lib/ai/entitlements";
@@ -26,6 +25,7 @@ import { createDocument } from "@/lib/ai/tools/create-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
+import { cache } from "@/lib/cache";
 import { isProductionEnvironment } from "@/lib/constants";
 import {
   createStreamId,
@@ -46,8 +46,6 @@ import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
 export const maxDuration = 60;
 
-let globalStreamContext: ResumableStreamContext | null = null;
-
 const getTokenlensCatalog = cache(
   async (): Promise<ModelCatalog | undefined> => {
     try {
@@ -64,35 +62,31 @@ const getTokenlensCatalog = cache(
   { revalidate: 24 * 60 * 60 } // 24 hours
 );
 
-export function getStreamContext() {
-  if (!globalStreamContext) {
-    try {
-      globalStreamContext = createResumableStreamContext({
-        waitUntil: after,
-      });
-    } catch (error: any) {
-      if (error.message.includes("REDIS_URL")) {
-        console.log(
-          " > Resumable streams are disabled due to missing REDIS_URL"
-        );
-      } else {
-        console.error(error);
-      }
+export function getStreamContext(): ResumableStreamContext | undefined {
+  try {
+    return createResumableStreamContext({
+      keyPrefix: "chatbot::resumable-stream",
+      waitUntil,
+    });
+  } catch (error: any) {
+    if (error.message.includes("REDIS_URL")) {
+      console.log(" > Resumable streams are disabled due to missing REDIS_URL");
+    } else {
+      console.error(error);
     }
   }
-
-  return globalStreamContext;
 }
 
 export async function POST(request: Request) {
-  let requestBody: PostRequestBody;
-
-  try {
-    const json = await request.json();
-    requestBody = postRequestBodySchema.parse(json);
-  } catch (_) {
-    return new ChatSDKError("bad_request:api").toResponse();
+  const json = await request.json();
+  const validatedRequestBody = postRequestBodySchema.safeParse(json);
+  if (!validatedRequestBody.success) {
+    return new ChatSDKError(
+      "bad_request:api",
+      z.prettifyError(validatedRequestBody.error)
+    ).toResponse();
   }
+  const requestBody: PostRequestBody = validatedRequestBody.data;
 
   try {
     const {
@@ -146,7 +140,11 @@ export async function POST(request: Request) {
     const messagesFromDb = await getMessagesByChatId({ id });
     const uiMessages = [...convertToUIMessages(messagesFromDb), message];
 
-    const { longitude, latitude, city, country } = geolocation(request);
+    const headers = request.headers;
+    const city = headers.get("cf-ipcity") ?? undefined;
+    const country = headers.get("cf-ipcountry") ?? undefined;
+    const longitude = headers.get("cf-iplongitude") ?? undefined;
+    const latitude = headers.get("cf-iplatitude") ?? undefined;
 
     const requestHints: RequestHints = {
       longitude,
@@ -274,17 +272,23 @@ export async function POST(request: Request) {
       },
     });
 
-    // const streamContext = getStreamContext();
+    const streamContext = getStreamContext();
 
-    // if (streamContext) {
-    //   return new Response(
-    //     await streamContext.resumableStream(streamId, () =>
-    //       stream.pipeThrough(new JsonToSseTransformStream())
-    //     )
-    //   );
-    // }
+    if (streamContext) {
+      return new Response(
+        (
+          await streamContext.resumableStream(streamId, () =>
+            stream.pipeThrough(new JsonToSseTransformStream())
+          )
+        )?.pipeThrough(new TextEncoderStream())
+      );
+    }
 
-    return new Response(stream.pipeThrough(new JsonToSseTransformStream()));
+    return new Response(
+      stream
+        .pipeThrough(new JsonToSseTransformStream())
+        .pipeThrough(new TextEncoderStream())
+    );
   } catch (error) {
     const vercelId = request.headers.get("x-vercel-id");
 
@@ -327,7 +331,7 @@ export async function DELETE(request: Request) {
     return new ChatSDKError("forbidden:chat").toResponse();
   }
 
-  const deletedChat = await deleteChatById({ id });
+  const deletedChat = await deleteChatById({ data: { id } });
 
   return Response.json(deletedChat, { status: 200 });
 }

@@ -6,7 +6,7 @@ import { DUMMY_PASSWORD } from "@/lib/constants";
 import { createGuestUser, getUser } from "@/lib/db/queries";
 import { authConfig } from "./auth.config";
 
-export { auth } from "@/lib/auth";
+export { auth } from "@/lib/cared";
 
 export type UserType = "guest" | "regular";
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type { UseChatHelpers } from "@ai-sdk/react";
+import { useServerFn } from "@tanstack/react-start";
 import {
   type Dispatch,
   type SetStateAction,
@@ -53,6 +54,8 @@ export function MessageEditor({
     adjustHeight();
   };
 
+  const deleteTrailingMessages = useServerFn(deleteTrailingMessagesFromServer);
+
   return (
     <div className="flex w-full flex-col gap-2">
       <Textarea
@@ -80,7 +83,7 @@ export function MessageEditor({
           onClick={async () => {
             setIsSubmitting(true);
 
-            await deleteTrailingMessagesFromServer({
+            await deleteTrailingMessages({
               data: { id: message.id },
             });
 

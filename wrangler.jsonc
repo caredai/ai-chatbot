@@ -5,9 +5,10 @@
   "compatibility_flags": [
     "nodejs_compat",
     "global_fetch_strictly_public",
-    "nodejs_compat_populate_process_env"
+    "nodejs_compat_populate_process_env",
+    "no_handle_cross_request_promise_resolution"
   ],
-  "main": "@tanstack/react-start/server-entry",
+  "main": "./server.ts",
   "observability": {
     "enabled": true
   },
@@ -15,9 +16,27 @@
   "keep_vars": true,
   "send_metrics": false,
   "vars": {},
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "cared"
+    }
+  ],
   "env": {
     "production": {
-      "vars": {}
+      "vars": {},
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "05c2ddddd25140c885b1087570a1b3d2"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "R2",
+          "bucket_name": "cared"
+        }
+      ]
     }
   }
 }

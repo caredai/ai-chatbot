@@ -6,8 +6,7 @@ import {
 import { Chat } from "@/components/chat";
 import { DataStreamHandler } from "@/components/data-stream-handler";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
-import { auth } from "@/lib/auth";
-import { getChatModelFromCookie } from "@/lib/cookie";
+import { auth } from "@/lib/cared";
 import { generateUUID } from "@/lib/utils";
 
 export const Route = createFileRoute("/chat/")({
@@ -17,47 +16,32 @@ export const Route = createFileRoute("/chat/")({
   beforeLoad: async () => {
     const session = await auth();
     if (!session) {
-      throw redirect({ to: "/" });
+      throw redirect({
+        to: "/auth/sign-in",
+        search: {
+          redirectTo: "/chat",
+        },
+      });
     }
 
     const id = generateUUID();
 
-    const modelIdFromCookie = await getChatModelFromCookie();
-
     return {
       id,
-      modelIdFromCookie,
     };
   },
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const { id, modelIdFromCookie } = Route.useRouteContext();
-
-  if (!modelIdFromCookie) {
-    return (
-      <>
-        <Chat
-          autoResume={false}
-          id={id}
-          initialChatModel={DEFAULT_CHAT_MODEL}
-          initialMessages={[]}
-          initialVisibilityType="private"
-          isReadonly={false}
-          key={id}
-        />
-        <DataStreamHandler />
-      </>
-    );
-  }
+  const { id } = Route.useRouteContext();
 
   return (
     <>
       <Chat
         autoResume={false}
         id={id}
-        initialChatModel={modelIdFromCookie}
+        initialChatModel={DEFAULT_CHAT_MODEL}
         initialMessages={[]}
         initialVisibilityType="private"
         isReadonly={false}

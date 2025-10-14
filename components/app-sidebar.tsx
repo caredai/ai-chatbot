@@ -3,6 +3,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import type { User } from "next-auth";
 import { PlusIcon } from "@/components/icons";
+import { Logo } from "@/components/logo";
 import { SidebarHistory } from "@/components/sidebar-history";
 import { SidebarUser } from "@/components/sidebar-user";
 import { Button } from "@/components/ui/button";
@@ -25,17 +26,29 @@ export function AppSidebar({ user }: { user: User | undefined }) {
       <SidebarHeader>
         <SidebarMenu>
           <div className="flex flex-row items-center justify-between">
-            <Link
-              className="flex flex-row items-center gap-3"
-              onClick={() => {
-                setOpenMobile(false);
-              }}
-              to="/chat"
-            >
-              <span className="cursor-pointer rounded-md px-2 font-semibold text-lg hover:bg-muted">
-                Chatbot
-              </span>
-            </Link>
+            <div className="flex flex-row items-center gap-1 ps-1">
+              <Link
+                onClick={(e) => {
+                  e.preventDefault();
+                  setOpenMobile(false);
+                  router.navigate({ to: "/", reloadDocument: true });
+                }}
+                preload={false}
+                to="/"
+              >
+                <Logo />
+              </Link>
+              <Link
+                onClick={() => {
+                  setOpenMobile(false);
+                }}
+                to="/chat"
+              >
+                <span className="cursor-pointer rounded-md px-2 font-semibold text-lg hover:bg-muted">
+                  Chat
+                </span>
+              </Link>
+            </div>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

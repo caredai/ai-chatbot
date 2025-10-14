@@ -1,6 +1,8 @@
 // import "server-only";
 
-import { createServerFn } from "@tanstack/react-start";
+import { env } from "cloudflare:workers";
+import { Pool as NeonPool, neonConfig } from "@neondatabase/serverless";
+import { createServerFn, createServerOnlyFn } from "@tanstack/react-start";
 import {
   and,
   asc,
@@ -13,12 +15,15 @@ import {
   lt,
   type SQL,
 } from "drizzle-orm";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import ws from "ws";
 import type { ArtifactKind } from "@/components/artifact";
 import type { VisibilityType } from "@/components/visibility-selector";
 import { ChatSDKError } from "../errors";
 import type { AppUsage } from "../usage";
-import { generateUUID } from "../utils";
+import { convertToUIMessages, generateUUID } from "../utils";
 import {
   type Chat,
   chat,
@@ -38,16 +43,54 @@ import { generateHashedPassword } from "./utils";
 // use the Drizzle adapter for Auth.js / NextAuth
 // https://authjs.dev/reference/adapter/drizzle
 
-let db: PostgresJsDatabase<Record<string, never>>;
-async function getDb() {
-  if (!db) {
-    const postgres = (await import("postgres")).default;
-    // biome-ignore lint: Forbidden non-null assertion.
-    const client = postgres(process.env.POSTGRES_URL!);
-    db = drizzle(client);
+neonConfig.webSocketConstructor = ws;
+neonConfig.poolQueryViaFetch = true;
+
+let cachedDb:
+  | PostgresJsDatabase<Record<string, never>>
+  | NeonDatabase<Record<string, never>>
+  | undefined;
+const getDb = createServerOnlyFn(async () => {
+  if (
+    cachedDb &&
+    !env.HYPERDRIVE &&
+    !globalThis.navigator.userAgent.includes("Cloudflare-Workers")
+  ) {
+    return cachedDb;
   }
+
+  let db: typeof cachedDb;
+  if (!db) {
+    if (env.HYPERDRIVE) {
+      const postgres = (await import("postgres")).default;
+      const client = postgres(env.HYPERDRIVE.connectionString, {
+        // Limit the connections for the Worker request to 5 due to Workers' limits on concurrent external connections
+        max: 5,
+        // If you are not using array types in your Postgres schema, disable `fetch_types` to avoid an additional round-trip (unnecessary latency)
+        fetch_types: false,
+      });
+      db = drizzle(client);
+    } else if (process.env.POSTGRES_URL?.includes("neon.tech")) {
+      const pool = new NeonPool({ connectionString: process.env.POSTGRES_URL });
+      db = drizzleNeon(pool);
+    } else {
+      const postgres = (await import("postgres")).default;
+      // biome-ignore lint: Forbidden non-null assertion.
+      const client = postgres(process.env.POSTGRES_URL!);
+      db = drizzle(client);
+    }
+  }
+
+  if (
+    !cachedDb &&
+    !env.HYPERDRIVE &&
+    !globalThis.navigator.userAgent.includes("Cloudflare-Workers")
+  ) {
+    cachedDb = db;
+  }
+
   return db;
-}
+});
 
 export async function getUser(email: string): Promise<User[]> {
   try {
@@ -83,6 +126,7 @@ export async function createGuestUser() {
     return await (await getDb())
       .insert(user)
       .values({ email, password })
+      // @ts-expect-error
       .returning({
         id: user.id,
         email: user.email,
@@ -115,28 +159,47 @@ export async function saveChat({
       visibility,
     });
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError("bad_request:database", "Failed to save chat");
   }
 }
 
-export async function deleteChatById({ id }: { id: string }) {
-  try {
-    await (await getDb()).delete(vote).where(eq(vote.chatId, id));
-    await (await getDb()).delete(message).where(eq(message.chatId, id));
-    await (await getDb()).delete(stream).where(eq(stream.chatId, id));
+export const deleteChatById = createServerFn()
+  .inputValidator((data: { id: string }) => data)
+  .handler(async ({ data: { id } }) => {
+    const messages = await getMessagesByChatId({ id });
+    const fileUrlsToDelete = convertToUIMessages(messages)
+      .flatMap((m) => m.parts.map((p) => p.type === "file" && p.url))
+      .filter(
+        (url): url is string =>
+          !!url && url.startsWith(import.meta.env.VITE_IMAGE_URL)
+      );
 
-    const [chatsDeleted] = await (await getDb())
-      .delete(chat)
-      .where(eq(chat.id, id))
-      .returning();
-    return chatsDeleted;
-  } catch (_error) {
-    throw new ChatSDKError(
-      "bad_request:database",
-      "Failed to delete chat by id"
-    );
-  }
-}
+    try {
+      await (await getDb()).delete(vote).where(eq(vote.chatId, id));
+      await (await getDb()).delete(message).where(eq(message.chatId, id));
+      await (await getDb()).delete(stream).where(eq(stream.chatId, id));
+
+      const [chatsDeleted] = await (await getDb())
+        .delete(chat)
+        .where(eq(chat.id, id))
+        .returning();
+
+      await env.R2.delete(
+        fileUrlsToDelete.map((fileUrl) =>
+          decodeURIComponent(new URL(fileUrl).pathname.slice(1))
+        )
+      );
+
+      return chatsDeleted;
+    } catch (_error) {
+      console.error(_error);
+      throw new ChatSDKError(
+        "bad_request:database",
+        "Failed to delete chat by id"
+      );
+    }
+  });
 
 export async function getChatsByUserId({
   id,
@@ -207,6 +270,7 @@ export async function getChatsByUserId({
       hasMore,
     };
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get chats by user id"
@@ -226,6 +290,7 @@ export async function getChatById({ id }: { id: string }) {
 
     return selectedChat;
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError("bad_request:database", "Failed to get chat by id");
   }
 }
@@ -238,6 +303,7 @@ export async function saveMessages({ messages }: { messages: DBMessage[] }) {
   try {
     return await (await getDb()).insert(message).values(messages);
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError("bad_request:database", "Failed to save messages");
   }
 }
@@ -250,6 +316,7 @@ export async function getMessagesByChatId({ id }: { id: string }) {
       .where(eq(message.chatId, id))
       .orderBy(asc(message.createdAt));
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get messages by chat id"
@@ -291,6 +358,7 @@ export async function voteMessage({
       isUpvoted: type === "up",
     });
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError("bad_request:database", "Failed to vote message");
   }
 }
@@ -299,6 +367,7 @@ export async function getVotesByChatId({ id }: { id: string }) {
   try {
     return await (await getDb()).select().from(vote).where(eq(vote.chatId, id));
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get votes by chat id"
@@ -332,6 +401,7 @@ export async function saveDocument({
       })
       .returning();
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError("bad_request:database", "Failed to save document");
   }
 }
@@ -346,6 +416,7 @@ export async function getDocumentsById({ id }: { id: string }) {
 
     return documents;
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get documents by id"
@@ -363,6 +434,7 @@ export async function getDocumentById({ id }: { id: string }) {
 
     return selectedDocument;
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get document by id"
@@ -392,6 +464,7 @@ export async function deleteDocumentsByIdAfterTimestamp({
       .where(and(eq(document.id, id), gt(document.createdAt, timestamp)))
       .returning();
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to delete documents by id after timestamp"
@@ -407,6 +480,7 @@ export async function saveSuggestions({
   try {
     return await (await getDb()).insert(suggestion).values(suggestions);
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to save suggestions"
@@ -425,6 +499,7 @@ export async function getSuggestionsByDocumentId({
       .from(suggestion)
       .where(and(eq(suggestion.documentId, documentId)));
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get suggestions by document id"
@@ -439,6 +514,7 @@ export async function getMessageById({ id }: { id: string }) {
       .from(message)
       .where(eq(message.id, id));
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get message by id"
@@ -479,6 +555,7 @@ export async function deleteMessagesByChatIdAfterTimestamp({
         );
     }
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to delete messages by chat id after timestamp"
@@ -499,6 +576,7 @@ export async function updateChatVisiblityById({
       .set({ visibility })
       .where(eq(chat.id, chatId));
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to update chat visibility by id"
@@ -552,6 +630,7 @@ export async function getMessageCountByUserId({
 
     return stats?.count ?? 0;
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get message count by user id"
@@ -571,6 +650,7 @@ export async function createStreamId({
       .insert(stream)
       .values({ id: streamId, chatId, createdAt: new Date() });
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to create stream id"
@@ -589,6 +669,7 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
 
     return streamIds.map(({ id }) => id);
   } catch (_error) {
+    console.error(_error);
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get stream ids by chat id"

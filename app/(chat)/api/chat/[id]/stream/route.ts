@@ -104,10 +104,14 @@ export async function GET(
     });
 
     return new Response(
-      restoredStream.pipeThrough(new JsonToSseTransformStream()),
+      restoredStream
+        .pipeThrough(new JsonToSseTransformStream())
+        .pipeThrough(new TextEncoderStream()),
       { status: 200 }
     );
   }
 
-  return new Response(stream, { status: 200 });
+  return new Response(stream.pipeThrough(new TextEncoderStream()), {
+    status: 200,
+  });
 }

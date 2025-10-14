@@ -1,6 +1,7 @@
 import { isNotFound, isRedirect, redirect } from "@tanstack/react-router";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
+import { sessionCookieName } from "@/lib/cared";
 
 // TODO
 // https://github.com/TanStack/router/issues/4460#issuecomment-3015836376
@@ -17,11 +18,6 @@ const convertRedirectErrorToExceptionMiddleware = createMiddleware().server(
   }
 );
 
-const cookiePrefix = import.meta.env.VITE_CHAT_URL?.startsWith("https")
-  ? "__Secure-"
-  : "";
-const cookieName = `${cookiePrefix}cared.session_token`;
-
 const globalMiddleware = createMiddleware()
   .middleware([convertRedirectErrorToExceptionMiddleware])
   .server(({ next, request }) => {
@@ -31,10 +27,13 @@ const globalMiddleware = createMiddleware()
       return next();
     }
 
-    const sessionCookie = getCookie(cookieName);
+    const sessionCookie = getCookie(sessionCookieName);
     if (!sessionCookie) {
       throw redirect({
-        to: "/",
+        to: "/auth/sign-in",
+        search: {
+          redirectTo: "/chat",
+        },
       });
     }
 

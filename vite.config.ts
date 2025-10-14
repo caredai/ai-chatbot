@@ -7,29 +7,32 @@ import { defineConfig } from "vite";
 import svgr from "vite-plugin-svgr";
 import tsConfigPaths from "vite-tsconfig-paths";
 
-export default defineConfig(({ command }) => {
+export default defineConfig(() => {
   return {
     envDir: ".",
     server: {
       port: 3003,
     },
+    define: {
+      __dirname: JSON.stringify(""),
+    },
     plugins: [
-      ...(command === "build"
-        ? [
-            cloudflare({
-              viteEnvironment: { name: "ssr" },
-            }),
-          ]
-        : []),
+      cloudflare({
+        viteEnvironment: { name: "ssr" },
+      }),
       tsConfigPaths(),
       tailwindcss(),
       tanstackStart({
         srcDirectory: ".",
+        serverFns: {
+          base: "/chat/_serverFn",
+        },
       }),
       svgr(),
       viteReact(),
     ],
     build: {
+      assetsDir: "chat/assets",
       commonjsOptions: { transformMixedEsModules: true },
       rollupOptions: {
         onwarn(

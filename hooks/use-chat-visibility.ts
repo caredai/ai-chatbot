@@ -1,5 +1,6 @@
 "use client";
 
+import { useServerFn } from "@tanstack/react-start";
 import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
@@ -18,7 +19,7 @@ export function useChatVisibility({
   initialVisibilityType: VisibilityType;
 }) {
   const { mutate, cache } = useSWRConfig();
-  const history: ChatHistory = cache.get("/api/history")?.data;
+  const history: ChatHistory = cache.get("/chat/api/history")?.data;
 
   const { data: localVisibility, mutate: setLocalVisibility } = useSWR(
     `${chatId}-visibility`,
@@ -39,11 +40,13 @@ export function useChatVisibility({
     return chat.visibility;
   }, [history, chatId, localVisibility]);
 
+  const updateChatVisibility = useServerFn(updateChatVisibilityFromServer);
+
   const setVisibilityType = (updatedVisibilityType: VisibilityType) => {
     setLocalVisibility(updatedVisibilityType);
     mutate(unstable_serialize(getChatHistoryPaginationKey));
 
-    updateChatVisibilityFromServer({
+    updateChatVisibility({
       data: { chatId, visibility: updatedVisibilityType },
     });
   };

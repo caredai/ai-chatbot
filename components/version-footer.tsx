@@ -56,9 +56,9 @@ export const VersionFooter = ({
             setIsMutating(true);
 
             mutate(
-              `/api/document?id=${artifact.documentId}`,
+              `/chat/api/document?id=${artifact.documentId}`,
               await fetch(
-                `/api/document?id=${artifact.documentId}&timestamp=${getDocumentTimestampByIndex(
+                `/chat/api/document?id=${artifact.documentId}&timestamp=${getDocumentTimestampByIndex(
                   documents,
                   currentVersionIndex
                 )}`,

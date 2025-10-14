@@ -177,8 +177,14 @@ const PurePreviewMessage = ({
                     )}
                     {state === "output-available" && (
                       <ToolOutput
-                        errorText={undefined}
-                        output={<Weather weatherAtLocation={part.output} />}
+                        errorText={
+                          part.output.error ? part.output.reason : undefined
+                        }
+                        output={
+                          part.output.error ? null : (
+                            <Weather weatherAtLocation={part.output} />
+                          )
+                        }
                       />
                     )}
                   </ToolContent>

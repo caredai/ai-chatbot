@@ -19,6 +19,7 @@ export const fetcher = async (url: string) => {
   const response = await fetch(url);
 
   if (!response.ok) {
+    // @ts-ignore
     const { code, cause } = await response.json();
     throw new ChatSDKError(code as ErrorCode, cause);
   }
@@ -34,6 +35,7 @@ export async function fetchWithErrorHandlers(
     const response = await fetch(input, init);
 
     if (!response.ok) {
+      // @ts-ignore
       const { code, cause } = await response.json();
       throw new ChatSDKError(code as ErrorCode, cause);
     }

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { NextRequest } from "next/server";
 import { GET } from "@/app/(chat)/api/history/route";
 
-export const Route = createFileRoute("/api/history")({
+export const Route = createFileRoute("/chat/api/history")({
   server: {
     handlers: {
       GET: ({ request }) => {

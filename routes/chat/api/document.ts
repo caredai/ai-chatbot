@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { DELETE, GET, POST } from "@/app/(chat)/api/document/route";
 
-export const Route = createFileRoute("/api/document")({
+export const Route = createFileRoute("/chat/api/document")({
   server: {
     handlers: {
       GET: ({ request }) => {

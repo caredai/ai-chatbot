@@ -1,4 +1,4 @@
-"use server";
+// "use server";
 
 import { createServerFn } from "@tanstack/react-start";
 import { getSuggestionsByDocumentId } from "@/lib/db/queries";

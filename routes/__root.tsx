@@ -17,8 +17,8 @@ import { ErrorComponent } from "@/components/error-component";
 import { NotFoundComponent } from "@/components/not-found-component";
 import { ThemeProvider } from "@/components/theme";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { auth } from "@/lib/auth";
-import { getSidebarStateFromCookie } from "@/lib/cookie";
+import { useSidebarState } from "@/hooks/use-sidebar";
+import { auth } from "@/lib/cared";
 
 const LIGHT_THEME_COLOR = "hsl(0 0% 100%)";
 const DARK_THEME_COLOR = "hsl(240deg 10% 3.92%)";
@@ -68,10 +68,8 @@ export const Route = createRootRoute({
   ],
   beforeLoad: async () => {
     const session = await auth();
-    const isCollapsed = (await getSidebarStateFromCookie()) !== "true";
     return {
       session,
-      isCollapsed,
     };
   },
   component: RootComponent,
@@ -80,7 +78,9 @@ export const Route = createRootRoute({
 });
 
 function RootComponent() {
-  const { session, isCollapsed } = Route.useRouteContext();
+  const { session } = Route.useRouteContext();
+
+  const { sidebarState, setSidebarState } = useSidebarState();
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -90,7 +90,7 @@ function RootComponent() {
       <body className="antialiased">
         <ThemeProvider>
           <DataStreamProvider>
-            <SidebarProvider defaultOpen={!isCollapsed}>
+            <SidebarProvider onOpenChange={setSidebarState} open={sidebarState}>
               <AppSidebar user={session?.user} />
               <SidebarInset>
                 <Outlet />

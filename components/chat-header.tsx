@@ -5,7 +5,9 @@ import { memo } from "react";
 import { useWindowSize } from "usehooks-ts";
 import { SidebarToggle } from "@/components/sidebar-toggle";
 import { Button } from "@/components/ui/button";
+import { useProviderModels, useSelectedModel } from "@/hooks/use-model";
 import { PlusIcon } from "./icons";
+import { ModelSelect } from "./models/model-select";
 import { useSidebar } from "./ui/sidebar";
 import { VisibilitySelector, type VisibilityType } from "./visibility-selector";
 
@@ -23,6 +25,9 @@ function PureChatHeader({
 
   const { width: windowWidth } = useWindowSize();
 
+  const { languageProviderModels } = useProviderModels();
+  const { selectedModel, setSelectedModel } = useSelectedModel();
+
   return (
     <header className="sticky top-0 flex items-center gap-2 bg-background px-2 py-1.5 md:px-2">
       <SidebarToggle />
@@ -36,7 +41,7 @@ function PureChatHeader({
           variant="outline"
         >
           <PlusIcon />
-          <span className="md:sr-only">New Chat</span>
+          <span className="sr-only">New Chat</span>
         </Button>
       )}
 
@@ -48,7 +53,15 @@ function PureChatHeader({
         />
       )}
 
-      <div className="hidden md:ml-auto md:flex" />
+      <ModelSelect
+        className="order-1 h-8 max-w-72 px-2 md:order-3 md:h-8.5"
+        modelType="language"
+        onValueChange={setSelectedModel}
+        providerModels={languageProviderModels}
+        value={selectedModel}
+      />
+
+      <div className="order-4 hidden md:ml-auto md:flex" />
     </header>
   );
 }

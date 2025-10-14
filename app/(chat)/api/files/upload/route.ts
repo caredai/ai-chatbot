@@ -1,8 +1,9 @@
-import { put } from "@vercel/blob";
+import { env } from "cloudflare:workers";
 import { NextResponse } from "next/server";
+import sanitize from "sanitize-filename";
 import { z } from "zod";
-
 import { auth } from "@/app/(auth)/auth";
+import { generateUUID } from "@/lib/utils";
 
 // Use Blob instead of File since File is not available in Node.js environment
 const FileSchema = z.object({
@@ -50,12 +51,20 @@ export async function POST(request: Request) {
     const filename = (formData.get("file") as File).name;
     const fileBuffer = await file.arrayBuffer();
 
-    try {
-      const data = await put(`${filename}`, fileBuffer, {
-        access: "public",
-      });
+    const key = `chatbot/${session.user.id}/${generateUUID()}/${sanitize(filename)}`;
 
-      return NextResponse.json(data);
+    try {
+      await env.R2.put(key, fileBuffer);
+      const data = await env.R2.head(key);
+      if (!data || !data.httpMetadata?.contentType) {
+        return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        url: new URL(data.key, import.meta.env.VITE_IMAGE_URL).toString(),
+        pathname: filename,
+        contentType: data.httpMetadata.contentType,
+      });
     } catch (_error) {
       return NextResponse.json({ error: "Upload failed" }, { status: 500 });
     }
@@ -66,3 +75,13 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export type UploadResult = {
+  url: string;
+  pathname: string;
+  contentType: string;
+};
+
+export type UploadError = {
+  error: string;
+};
