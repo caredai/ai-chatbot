@@ -137,7 +137,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const messagesFromDb = await getMessagesByChatId({ id });
+    const messagesFromDb = chat ? await getMessagesByChatId({ id }) : [];
     const uiMessages = [...convertToUIMessages(messagesFromDb), message];
 
     const headers = request.headers;

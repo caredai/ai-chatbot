@@ -23,18 +23,22 @@ const globalMiddleware = createMiddleware()
   .server(({ next, request }) => {
     const url = new URL(request.url);
     const pathname = url.pathname;
-    if (pathname === "/" || pathname.startsWith("/chat")) {
-      return next();
+    if (!pathname.startsWith("/chat")) {
+      throw redirect({
+        to: "/",
+      });
     }
 
-    const sessionCookie = getCookie(sessionCookieName);
-    if (!sessionCookie) {
-      throw redirect({
-        to: "/auth/sign-in",
-        search: {
-          redirectTo: "/chat",
-        },
-      });
+    if (pathname !== "/chat") {
+      const sessionCookie = getCookie(sessionCookieName);
+      if (!sessionCookie) {
+        throw redirect({
+          to: "/auth/sign-in",
+          search: {
+            redirectTo: "/chat",
+          },
+        });
+      }
     }
 
     return next();

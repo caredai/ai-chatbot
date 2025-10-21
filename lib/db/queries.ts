@@ -185,11 +185,13 @@ export const deleteChatById = createServerFn()
         .where(eq(chat.id, id))
         .returning();
 
-      await env.R2.delete(
-        fileUrlsToDelete.map((fileUrl) =>
-          decodeURIComponent(new URL(fileUrl).pathname.slice(1))
-        )
-      );
+      if (fileUrlsToDelete.length) {
+        await env.R2.delete(
+          fileUrlsToDelete.map((fileUrl) =>
+            decodeURIComponent(new URL(fileUrl).pathname.slice(1))
+          )
+        );
+      }
 
       return chatsDeleted;
     } catch (_error) {
